@@ -312,7 +312,6 @@ impl NetworkIterator {
      * The functions below are not public and only used by the Iterator trait
      * to help keep the next() code clean.
      */
-
     fn has_no_items_left(&self) -> bool {
         self.current_iterator.is_none() && self.networks.is_empty() && self.random_pool.is_empty()
     }
