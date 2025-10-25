@@ -2,7 +2,8 @@ use std::env;
 use std::process;
 use std::sync::Arc;
 
-use ansi_term::Color::{Green, Red};
+use ansi_term::Color::{Blue, Cyan, Green, Purple, Red, Yellow};
+use ansi_term::Style;
 use ipnetwork::{IpNetwork, NetworkSize};
 use pnet_datalink::NetworkInterface;
 use serde::Serialize;
@@ -28,24 +29,57 @@ pub fn show_interfaces(interfaces: &[NetworkInterface]) {
     let mut ready_count = 0;
 
     println!();
+    println!(
+        "{}",
+        Style::new()
+            .bold()
+            .paint("╔═══════════════════════════════════════════════════════════════════════════╗")
+    );
+    println!(
+        "{}",
+        Style::new()
+            .bold()
+            .paint("║              🌐  Network Interfaces Available for ARP Scan              ║")
+    );
+    println!(
+        "{}",
+        Style::new()
+            .bold()
+            .paint("╚═══════════════════════════════════════════════════════════════════════════╝")
+    );
+    println!();
+    println!(
+        "  {} {: <18} {: <18} {: <20} {}",
+        Cyan.bold().paint("ID"),
+        Cyan.bold().paint("Interface"),
+        Cyan.bold().paint("Status"),
+        Cyan.bold().paint("MAC Address"),
+        Cyan.bold().paint("IP Address")
+    );
+    println!("  {}", "─".repeat(90));
+
     for interface in interfaces.iter() {
         let up_text = match interface.is_up() {
-            true => format!("{} UP", Green.paint("✔")),
-            false => format!("{} DOWN", Red.paint("✖")),
+            true => format!("{} {}", Green.bold().paint("✔"), Green.paint("UP")),
+            false => format!("{} {}", Red.bold().paint("✖"), Red.dimmed().paint("DOWN")),
         };
         let mac_text = match interface.mac {
-            Some(mac_address) => format!("{}", mac_address),
-            None => "No MAC address".to_string(),
+            Some(mac_address) => Yellow.paint(format!("{}", mac_address)).to_string(),
+            None => Red.dimmed().paint("No MAC").to_string(),
         };
         let first_ip = match interface.ips.first() {
-            Some(ip_address) => format!("{}", ip_address),
-            None => "".to_string(),
+            Some(ip_address) => Blue.paint(format!("{}", ip_address)).to_string(),
+            None => Red.dimmed().paint("No IP").to_string(),
         };
 
-        let index_text = format!("{} ", interface.index);
+        let index_text = Purple.bold().paint(format!("[{}]", interface.index));
         println!(
-            "{: <3} {: <20} {: <18} {: <20} {}",
-            index_text, interface.name, up_text, mac_text, first_ip
+            "  {} {: <18} {: <29} {: <29} {}",
+            index_text,
+            Style::new().bold().paint(&interface.name),
+            up_text,
+            mac_text,
+            first_ip
         );
 
         interface_count += 1;
@@ -56,13 +90,16 @@ pub fn show_interfaces(interfaces: &[NetworkInterface]) {
 
     println!();
     println!(
-        "Found {} network interfaces, {} seems ready for ARP scans",
-        interface_count, ready_count
+        "  {} Found {} interfaces, {} ready for scanning",
+        Green.bold().paint("►"),
+        Yellow.bold().paint(interface_count.to_string()),
+        Green.bold().paint(ready_count.to_string())
     );
     if let Some(default_interface) = select_default_interface(interfaces) {
         println!(
-            "Default network interface will be {}",
-            default_interface.name
+            "  {} Default interface: {}",
+            Cyan.bold().paint("ℹ"),
+            Blue.bold().paint(&default_interface.name)
         );
     }
     println!();
@@ -139,21 +176,49 @@ pub fn display_prescan_details(
 
     println!();
     println!(
-        "Selected interface {} with IP {}",
-        selected_interface.name, network_list
+        "{}",
+        Style::new()
+            .bold()
+            .paint("╔═══════════════════════════════════════════════════════════════════════════╗")
+    );
+    println!(
+        "{}",
+        Style::new()
+            .bold()
+            .paint("║                        🎯  Scan Configuration                            ║")
+    );
+    println!(
+        "{}",
+        Style::new()
+            .bold()
+            .paint("╚═══════════════════════════════════════════════════════════════════════════╝")
+    );
+    println!();
+    println!(
+        "  {} Interface: {}",
+        Cyan.bold().paint("📡"),
+        Blue.bold().paint(&selected_interface.name)
+    );
+    println!(
+        "  {} Target Networks: {}",
+        Cyan.bold().paint("🌐"),
+        Yellow.paint(&network_list)
     );
     if let Some(forced_source_ipv4) = scan_options.source_ipv4 {
         println!(
-            "The ARP source IPv4 will be forced to {}",
-            forced_source_ipv4
+            "  {} Source IPv4 (forced): {}",
+            Cyan.bold().paint("📍"),
+            Purple.paint(format!("{}", forced_source_ipv4))
         );
     }
     if let Some(forced_destination_mac) = scan_options.destination_mac {
         println!(
-            "The ARP destination MAC will be forced to {}",
-            forced_destination_mac
+            "  {} Destination MAC (forced): {}",
+            Cyan.bold().paint("📌"),
+            Purple.paint(format!("{}", forced_destination_mac))
         );
     }
+    println!();
 }
 
 /**
@@ -203,14 +268,41 @@ pub fn display_scan_results(
     if !target_details.is_empty() {
         println!();
         println!(
-            "| IPv4            | MAC               | {: <h_max$} | {: <v_max$} |",
-            "Hostname",
-            "Vendor",
-            h_max = hostname_len,
-            v_max = vendor_len
+            "{}",
+            Style::new().bold().paint(
+                "╔═══════════════════════════════════════════════════════════════════════════╗"
+            )
         );
         println!(
-            "|-----------------|-------------------|-{:-<h_max$}-|-{:-<v_max$}-|",
+            "{}",
+            Style::new().bold().paint(
+                "║                          🎯  Scan Results                                ║"
+            )
+        );
+        println!(
+            "{}",
+            Style::new().bold().paint(
+                "╚═══════════════════════════════════════════════════════════════════════════╝"
+            )
+        );
+        println!();
+        print!("  │ {: <15} ", Cyan.bold().paint("IPv4 Address"));
+        print!("│ {: <17} ", Cyan.bold().paint("MAC Address"));
+        print!(
+            "│ {: <h_max$} ",
+            Cyan.bold().paint("Hostname"),
+            h_max = hostname_len
+        );
+        println!(
+            "│ {: <v_max$} │",
+            Cyan.bold().paint("Vendor"),
+            v_max = vendor_len
+        );
+
+        println!(
+            "  ├─{:─<15}─┼─{:─<17}─┼─{:─<h_max$}─┼─{:─<v_max$}─┤",
+            "",
+            "",
             "",
             "",
             h_max = hostname_len,
@@ -228,38 +320,97 @@ pub fn display_scan_results(
             Some(vendor) => vendor,
             None => "",
         };
+        print!("  │ {: <15} ", Blue.paint(format!("{}", detail.ipv4)));
+        print!("│ {: <17} ", Yellow.paint(format!("{}", detail.mac)));
+        print!(
+            "│ {: <h_max$} ",
+            Green.paint(hostname),
+            h_max = hostname_len
+        );
+        println!("│ {: <v_max$} │", Purple.paint(vendor), v_max = vendor_len);
+    }
+
+    if !target_details.is_empty() {
         println!(
-            "| {: <15} | {: <18} | {: <h_max$} | {: <v_max$} |",
-            detail.ipv4,
-            detail.mac,
-            hostname,
-            vendor,
+            "  └─{:─<15}─┴─{:─<17}─┴─{:─<h_max$}─┴─{:─<v_max$}─┘",
+            "",
+            "",
+            "",
+            "",
             h_max = hostname_len,
             v_max = vendor_len
         );
     }
 
     println!();
-    print!("ARP scan finished, ");
-    let target_count = target_details.len();
-    match target_count {
-        0 => print!("{}", Red.paint("no hosts found")),
-        1 => print!("1 host found"),
-        _ => print!("{} hosts found", target_count),
-    }
     let seconds_duration = (response_summary.duration_ms as f32) / (1000_f32);
-    println!(" in {:.3} seconds", seconds_duration);
+    let target_count = target_details.len();
+
+    println!(
+        "{}",
+        Style::new()
+            .bold()
+            .paint("╔═══════════════════════════════════════════════════════════════════════════╗")
+    );
+    println!(
+        "{}",
+        Style::new()
+            .bold()
+            .paint("║                          📊  Scan Summary                                ║")
+    );
+    println!(
+        "{}",
+        Style::new()
+            .bold()
+            .paint("╚═══════════════════════════════════════════════════════════════════════════╝")
+    );
+    println!();
+
+    match target_count {
+        0 => println!(
+            "  {} {}",
+            Red.bold().paint("✖"),
+            Red.bold().paint("No hosts found")
+        ),
+        1 => println!(
+            "  {} {}",
+            Green.bold().paint("✔"),
+            Green.bold().paint("1 host discovered")
+        ),
+        _ => println!(
+            "  {} {} {}",
+            Green.bold().paint("✔"),
+            Green.bold().paint(format!("{}", target_count)),
+            Green.paint("hosts discovered")
+        ),
+    }
+
+    println!(
+        "  {} Scan duration: {}",
+        Cyan.paint("⏱"),
+        Yellow.paint(format!("{:.3}s", seconds_duration))
+    );
 
     match response_summary.packet_count {
-        0 => print!("No packets received, "),
-        1 => print!("1 packet received, "),
-        _ => print!("{} packets received, ", response_summary.packet_count),
+        0 => println!("  {} No packets received", Red.dimmed().paint("📦")),
+        1 => println!("  {} 1 packet received", Blue.paint("📦")),
+        _ => println!(
+            "  {} {} packets received",
+            Blue.paint("📦"),
+            Blue.paint(format!("{}", response_summary.packet_count))
+        ),
     };
+
     match response_summary.arp_count {
-        0 => println!("no ARP packets filtered"),
-        1 => println!("1 ARP packet filtered"),
-        _ => println!("{} ARP packets filtered", response_summary.arp_count),
+        0 => println!("  {} No ARP packets filtered", Red.dimmed().paint("🔍")),
+        1 => println!("  {} 1 ARP packet filtered", Green.paint("🔍")),
+        _ => println!(
+            "  {} {} ARP packets filtered",
+            Green.paint("🔍"),
+            Green.paint(format!("{}", response_summary.arp_count))
+        ),
     };
+
     println!();
 }
 

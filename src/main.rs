@@ -11,9 +11,41 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use ansi_term::Color::{Cyan, Green, Yellow};
+use ansi_term::Style;
+
 use crate::args::{OutputFormat, ScanOptions};
 use crate::network::NetworkIterator;
 use crate::vendor::Vendor;
+
+fn print_banner() {
+    println!();
+    println!(
+        "{}",
+        Style::new().bold().paint(
+            "  ╔═══════════════════════════════════════════════════════════════════════════╗"
+        )
+    );
+    println!(
+        "{}",
+        Cyan.bold().paint(
+            "  ║                      🔍  ARP-SCAN-RS v0.14.0                             ║"
+        )
+    );
+    println!(
+        "{}",
+        Style::new().dimmed().paint(
+            "  ║              A minimalistic ARP scan tool written in Rust                ║"
+        )
+    );
+    println!(
+        "{}",
+        Style::new().bold().paint(
+            "  ╚═══════════════════════════════════════════════════════════════════════════╝"
+        )
+    );
+    println!();
+}
 
 fn main() {
     let matches = args::build_args().get_matches();
@@ -27,6 +59,7 @@ fn main() {
     let interfaces = pnet_datalink::interfaces();
 
     if matches.get_flag("list") {
+        print_banner();
         utils::show_interfaces(&interfaces);
         process::exit(0);
     }
@@ -53,6 +86,7 @@ fn main() {
         network::compute_network_configuration(&interfaces, &scan_options);
 
     if scan_options.is_plain_output() {
+        print_banner();
         utils::display_prescan_details(&ip_networks, selected_interface, scan_options.clone());
     }
 
@@ -100,20 +134,45 @@ fn main() {
     if scan_options.is_plain_output() {
         let formatted_ms = time::format_milliseconds(estimations.duration_ms);
         println!(
-            "Estimated scan time {} ({} bytes, {} bytes/s)",
-            formatted_ms, estimations.request_size, estimations.bandwidth
+            "  {} Estimated scan time: {}",
+            Cyan.bold().paint("⏱"),
+            Yellow.paint(formatted_ms)
         );
         println!(
-            "Sending {} ARP requests (waiting at least {}ms, {}ms request interval)",
-            network_size, scan_options.timeout_ms, interval_ms
+            "  {} Sending {} ARP requests",
+            Cyan.bold().paint("📡"),
+            Yellow.bold().paint(network_size.to_string())
         );
+        println!(
+            "  {} Timeout: {}ms | Interval: {}ms",
+            Cyan.bold().paint("⚙"),
+            Yellow.paint(scan_options.timeout_ms.to_string()),
+            Yellow.paint(interval_ms.to_string())
+        );
+        println!(
+            "  {} Bandwidth: {} bytes/s",
+            Cyan.bold().paint("📊"),
+            Yellow.paint(estimations.bandwidth.to_string())
+        );
+        println!();
+        println!(
+            "{}",
+            Style::new()
+                .bold()
+                .paint("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Scanning ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        );
+        println!();
     }
 
     let has_reached_timeout = Arc::new(AtomicBool::new(false));
     let cloned_reached_timeout = Arc::clone(&has_reached_timeout);
 
     ctrlc::set_handler(move || {
-        eprintln!("[warn] Receiving halt signal, ending scan with partial results");
+        eprintln!(
+            "\n  {} {}",
+            Yellow.bold().paint("⚠"),
+            Yellow.paint("Receiving halt signal, ending scan with partial results...")
+        );
         cloned_reached_timeout.store(true, Ordering::Relaxed);
     })
     .unwrap_or_else(|err| {
@@ -125,6 +184,7 @@ fn main() {
 
     // The retry count does right now use a 'brute-force' strategy without
     // synchronization process with the already known hosts.
+    let mut total_sent = 0u128;
     for _ in 0..scan_options.retry_count {
         if has_reached_timeout.load(Ordering::Relaxed) {
             break;
@@ -145,9 +205,40 @@ fn main() {
                     ipv4_address,
                     Arc::clone(&scan_options),
                 );
+                total_sent += 1;
+
+                // Show progress every 100 packets in plain output mode
+                if scan_options.is_plain_output() && total_sent % 100 == 0 {
+                    let progress_pct = (total_sent as f32
+                        / (network_size * scan_options.retry_count as u128) as f32)
+                        * 100.0;
+                    print!(
+                        "\r  {} Sending packets... [{}/{}] {:.1}%",
+                        Green.bold().paint("►"),
+                        total_sent,
+                        network_size * scan_options.retry_count as u128,
+                        progress_pct
+                    );
+                    use std::io::Write;
+                    std::io::stdout().flush().unwrap();
+                }
+
                 thread::sleep(Duration::from_millis(interval_ms));
             }
         }
+    }
+
+    if scan_options.is_plain_output() && total_sent > 0 {
+        println!(
+            "\r  {} Sending complete - {} packets sent                    ",
+            Green.bold().paint("✔"),
+            Green.bold().paint(total_sent.to_string())
+        );
+        println!(
+            "  {} Waiting for responses (timeout: {}ms)...",
+            Cyan.bold().paint("⏳"),
+            Yellow.paint(scan_options.timeout_ms.to_string())
+        );
     }
 
     // Once the ARP packets are sent, the main thread will sleep for T seconds

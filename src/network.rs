@@ -37,6 +37,7 @@ const ETHERNET_VLAN_PACKET_SIZE: usize = 46;
 pub struct ScanEstimation {
     pub interval_ms: u64,
     pub duration_ms: u128,
+    #[allow(dead_code)]
     pub request_size: u128,
     pub bandwidth: u128,
 }
