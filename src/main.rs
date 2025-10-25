@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use ansi_term::Color::{Cyan, Green, Yellow};
+use ansi_term::Color::Cyan;
 use ansi_term::Style;
 
 use crate::args::{OutputFormat, ScanOptions};
@@ -20,29 +20,8 @@ use crate::vendor::Vendor;
 
 fn print_banner() {
     println!();
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("╔═══════════════════════════════════════════════════════════════════════════╗")
-    );
-    println!(
-        "{}",
-        Cyan.bold()
-            .paint("║                         ARP-SCAN-RS v0.14.0                              ║")
-    );
-    println!(
-        "{}",
-        Style::new()
-            .dimmed()
-            .paint("║              A minimalistic ARP scan tool written in Rust                ║")
-    );
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("╚═══════════════════════════════════════════════════════════════════════════╝")
-    );
+    println!("{}", Cyan.bold().paint("ARP-SCAN-RS"));
+    println!("{}", Style::new().dimmed().paint("Version 0.14.0"));
     println!();
 }
 
@@ -132,30 +111,33 @@ fn main() {
 
     if scan_options.is_plain_output() {
         let formatted_ms = time::format_milliseconds(estimations.duration_ms);
-        println!("Estimated time: {}", Yellow.paint(formatted_ms));
         println!(
-            "ARP requests:   {}",
-            Yellow.bold().paint(network_size.to_string())
+            "{: <16} {}",
+            Style::new().dimmed().paint("Estimated time"),
+            formatted_ms
         );
         println!(
-            "Timeout:        {}ms",
-            Yellow.paint(scan_options.timeout_ms.to_string())
+            "{: <16} {}",
+            Style::new().dimmed().paint("ARP requests"),
+            network_size
         );
         println!(
-            "Interval:       {}ms",
-            Yellow.paint(interval_ms.to_string())
+            "{: <16} {}ms",
+            Style::new().dimmed().paint("Timeout"),
+            scan_options.timeout_ms
         );
         println!(
-            "Bandwidth:      {} bytes/s",
-            Yellow.paint(estimations.bandwidth.to_string())
+            "{: <16} {}ms",
+            Style::new().dimmed().paint("Interval"),
+            interval_ms
+        );
+        println!(
+            "{: <16} {} bytes/s",
+            Style::new().dimmed().paint("Bandwidth"),
+            estimations.bandwidth
         );
         println!();
-        println!(
-            "{}",
-            Style::new()
-                .bold()
-                .paint("═══════════════════════════════ Scanning ════════════════════════════════")
-        );
+        println!("{}", Style::new().dimmed().paint("─".repeat(78)));
         println!();
     }
 
@@ -204,7 +186,7 @@ fn main() {
                         / (network_size * scan_options.retry_count as u128) as f32)
                         * 100.0;
                     print!(
-                        "\rProgress: [{}/{}] {:.1}%  ",
+                        "\rSending: {}/{} ({:.1}%)    ",
                         total_sent,
                         network_size * scan_options.retry_count as u128,
                         progress_pct
@@ -220,9 +202,8 @@ fn main() {
 
     if scan_options.is_plain_output() && total_sent > 0 {
         println!(
-            "\r{} packets sent. Waiting for responses (timeout: {}ms)...                    ",
-            Green.bold().paint(total_sent.to_string()),
-            Yellow.paint(scan_options.timeout_ms.to_string())
+            "\rSent: {} packets · Waiting for responses (timeout: {}ms)            ",
+            total_sent, scan_options.timeout_ms
         );
     }
 

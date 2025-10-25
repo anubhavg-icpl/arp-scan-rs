@@ -2,7 +2,7 @@ use std::env;
 use std::process;
 use std::sync::Arc;
 
-use ansi_term::Color::{Blue, Cyan, Green, Purple, Red, Yellow};
+use ansi_term::Color::{Blue, Green, Red, Yellow};
 use ansi_term::Style;
 use ipnetwork::{IpNetwork, NetworkSize};
 use pnet_datalink::NetworkInterface;
@@ -29,56 +29,39 @@ pub fn show_interfaces(interfaces: &[NetworkInterface]) {
     let mut ready_count = 0;
 
     println!();
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("╔═══════════════════════════════════════════════════════════════════════════╗")
-    );
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("║                    Network Interfaces Available                         ║")
-    );
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("╚═══════════════════════════════════════════════════════════════════════════╝")
-    );
+    println!("{}", Style::new().bold().paint("NETWORK INTERFACES"));
     println!();
     println!(
-        "{: <6} {: <18} {: <12} {: <20} {}",
-        Cyan.bold().paint("INDEX"),
-        Cyan.bold().paint("INTERFACE"),
-        Cyan.bold().paint("STATUS"),
-        Cyan.bold().paint("MAC ADDRESS"),
-        Cyan.bold().paint("IP ADDRESS")
+        "{: <6} {: <18} {: <10} {: <20} {}",
+        Style::new().dimmed().paint("Index"),
+        Style::new().dimmed().paint("Interface"),
+        Style::new().dimmed().paint("Status"),
+        Style::new().dimmed().paint("MAC Address"),
+        Style::new().dimmed().paint("IP Address")
     );
-    println!("{}", "─".repeat(78));
+    println!("{}", Style::new().dimmed().paint("─".repeat(78)));
 
     for interface in interfaces.iter() {
         let up_text = match interface.is_up() {
             true => Green.paint("UP"),
-            false => Red.dimmed().paint("DOWN"),
+            false => Style::new().dimmed().paint("DOWN"),
         };
         let mac_text = match interface.mac {
-            Some(mac_address) => Yellow.paint(format!("{}", mac_address)).to_string(),
-            None => Style::new().dimmed().paint("(none)").to_string(),
+            Some(mac_address) => format!("{}", mac_address),
+            None => Style::new().dimmed().paint("-").to_string(),
         };
         let first_ip = match interface.ips.first() {
-            Some(ip_address) => Blue.paint(format!("{}", ip_address)).to_string(),
-            None => Style::new().dimmed().paint("(none)").to_string(),
+            Some(ip_address) => format!("{}", ip_address),
+            None => Style::new().dimmed().paint("-").to_string(),
         };
 
         println!(
-            "{: <6} {: <18} {: <12} {: <20} {}",
-            format!("{}", interface.index),
-            Style::new().bold().paint(&interface.name),
+            "{: <6} {: <18} {: <10} {: <20} {}",
+            Style::new().dimmed().paint(format!("{}", interface.index)),
+            interface.name,
             up_text,
-            mac_text,
-            first_ip
+            Yellow.dimmed().paint(&mac_text),
+            Blue.paint(&first_ip)
         );
 
         interface_count += 1;
@@ -87,15 +70,17 @@ pub fn show_interfaces(interfaces: &[NetworkInterface]) {
         }
     }
 
-    println!("{}", "─".repeat(78));
+    println!("{}", Style::new().dimmed().paint("─".repeat(78)));
     println!(
-        "Summary: {} total, {} ready for scanning",
-        Yellow.bold().paint(interface_count.to_string()),
-        Green.bold().paint(ready_count.to_string())
+        "{} total · {} ready · default: {}",
+        interface_count,
+        Green.paint(ready_count.to_string()),
+        Blue.paint(
+            select_default_interface(interfaces)
+                .map(|i| i.name.clone())
+                .unwrap_or_else(|| "none".to_string())
+        )
     );
-    if let Some(default_interface) = select_default_interface(interfaces) {
-        println!("Default: {}", Blue.bold().paint(&default_interface.name));
-    }
     println!();
 }
 
@@ -164,46 +149,36 @@ pub fn display_prescan_details(
         .collect::<Vec<String>>()
         .join(", ");
     if ip_networks.len() > 5 {
-        let more_text = format!(" (+{} more)", ip_networks.len() - 5);
+        let more_text = format!(" +{} more", ip_networks.len() - 5);
         network_list.push_str(&more_text);
     }
 
     println!();
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("╔═══════════════════════════════════════════════════════════════════════════╗")
-    );
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("║                         Scan Configuration                               ║")
-    );
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("╚═══════════════════════════════════════════════════════════════════════════╝")
-    );
+    println!("{}", Style::new().bold().paint("SCAN CONFIGURATION"));
     println!();
     println!(
-        "Interface:      {}",
-        Blue.bold().paint(&selected_interface.name)
+        "{: <16} {}",
+        Style::new().dimmed().paint("Interface"),
+        Blue.paint(&selected_interface.name)
     );
-    println!("Target:         {}", Yellow.paint(&network_list));
+    println!(
+        "{: <16} {}",
+        Style::new().dimmed().paint("Target"),
+        network_list
+    );
     if let Some(forced_source_ipv4) = scan_options.source_ipv4 {
         println!(
-            "Source IP:      {} {}",
-            Purple.paint(format!("{}", forced_source_ipv4)),
+            "{: <16} {} {}",
+            Style::new().dimmed().paint("Source IP"),
+            forced_source_ipv4,
             Style::new().dimmed().paint("(forced)")
         );
     }
     if let Some(forced_destination_mac) = scan_options.destination_mac {
         println!(
-            "Dest MAC:       {} {}",
-            Purple.paint(format!("{}", forced_destination_mac)),
+            "{: <16} {} {}",
+            Style::new().dimmed().paint("Dest MAC"),
+            forced_destination_mac,
             Style::new().dimmed().paint("(forced)")
         );
     }
@@ -256,109 +231,89 @@ pub fn display_scan_results(
 
     if !target_details.is_empty() {
         println!();
-        println!(
-            "{}",
-            Style::new().bold().paint(
-                "╔═══════════════════════════════════════════════════════════════════════════╗"
-            )
-        );
-        println!(
-            "{}",
-            Style::new().bold().paint(
-                "║                             Scan Results                                 ║"
-            )
-        );
-        println!(
-            "{}",
-            Style::new().bold().paint(
-                "╚═══════════════════════════════════════════════════════════════════════════╝"
-            )
-        );
+        println!("{}", Style::new().bold().paint("RESULTS"));
         println!();
         println!(
             "{: <17} {: <19} {: <h_max$} {: <v_max$}",
-            Cyan.bold().paint("IP ADDRESS"),
-            Cyan.bold().paint("MAC ADDRESS"),
-            Cyan.bold().paint("HOSTNAME"),
-            Cyan.bold().paint("VENDOR"),
+            Style::new().dimmed().paint("IP Address"),
+            Style::new().dimmed().paint("MAC Address"),
+            Style::new().dimmed().paint("Hostname"),
+            Style::new().dimmed().paint("Vendor"),
             h_max = hostname_len,
             v_max = vendor_len
         );
 
-        println!("{}", "─".repeat(17 + 19 + hostname_len + vendor_len + 3));
+        println!(
+            "{}",
+            Style::new()
+                .dimmed()
+                .paint("─".repeat(17 + 19 + hostname_len + vendor_len + 3))
+        );
     }
 
     for detail in target_details.iter() {
         let hostname: &str = match &detail.hostname {
             Some(hostname) => hostname,
-            None if !options.resolve_hostname => "(disabled)",
+            None if !options.resolve_hostname => "-",
             None => "",
         };
         let vendor: &str = match &detail.vendor {
             Some(vendor) => vendor,
-            None => "",
+            None => "-",
         };
         println!(
             "{: <17} {: <19} {: <h_max$} {: <v_max$}",
             Blue.paint(format!("{}", detail.ipv4)),
-            Yellow.paint(format!("{}", detail.mac)),
-            Green.paint(hostname),
-            Purple.paint(vendor),
+            Yellow.dimmed().paint(format!("{}", detail.mac)),
+            hostname,
+            Style::new().dimmed().paint(vendor),
             h_max = hostname_len,
             v_max = vendor_len
         );
     }
 
     if !target_details.is_empty() {
-        println!("{}", "─".repeat(17 + 19 + hostname_len + vendor_len + 3));
+        println!(
+            "{}",
+            Style::new()
+                .dimmed()
+                .paint("─".repeat(17 + 19 + hostname_len + vendor_len + 3))
+        );
     }
 
     println!();
     let seconds_duration = (response_summary.duration_ms as f32) / (1000_f32);
     let target_count = target_details.len();
 
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("╔═══════════════════════════════════════════════════════════════════════════╗")
-    );
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("║                            Scan Summary                                  ║")
-    );
-    println!(
-        "{}",
-        Style::new()
-            .bold()
-            .paint("╚═══════════════════════════════════════════════════════════════════════════╝")
-    );
+    println!();
+    println!("{}", Style::new().bold().paint("SUMMARY"));
     println!();
 
-    match target_count {
-        0 => println!("Hosts found:    {}", Red.bold().paint("0")),
-        1 => println!("Hosts found:    {}", Green.bold().paint("1")),
-        _ => println!(
-            "Hosts found:    {}",
-            Green.bold().paint(format!("{}", target_count))
-        ),
-    }
-
     println!(
-        "Scan duration:  {}",
-        Yellow.paint(format!("{:.3}s", seconds_duration))
+        "{: <16} {}",
+        Style::new().dimmed().paint("Hosts found"),
+        match target_count {
+            0 => Red.paint(format!("{}", target_count)),
+            _ => Green.paint(format!("{}", target_count)),
+        }
     );
 
     println!(
-        "Packets recv:   {}",
-        Blue.paint(format!("{}", response_summary.packet_count))
+        "{: <16} {:.3}s",
+        Style::new().dimmed().paint("Duration"),
+        seconds_duration
     );
 
     println!(
-        "ARP filtered:   {}",
-        Green.paint(format!("{}", response_summary.arp_count))
+        "{: <16} {}",
+        Style::new().dimmed().paint("Packets recv"),
+        response_summary.packet_count
+    );
+
+    println!(
+        "{: <16} {}",
+        Style::new().dimmed().paint("ARP filtered"),
+        response_summary.arp_count
     );
 
     println!();
