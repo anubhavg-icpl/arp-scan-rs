@@ -22,27 +22,26 @@ fn print_banner() {
     println!();
     println!(
         "{}",
-        Style::new().bold().paint(
-            "  ╔═══════════════════════════════════════════════════════════════════════════╗"
-        )
+        Style::new()
+            .bold()
+            .paint("╔═══════════════════════════════════════════════════════════════════════════╗")
     );
     println!(
         "{}",
-        Cyan.bold().paint(
-            "  ║                      🔍  ARP-SCAN-RS v0.14.0                             ║"
-        )
+        Cyan.bold()
+            .paint("║                         ARP-SCAN-RS v0.14.0                              ║")
     );
     println!(
         "{}",
-        Style::new().dimmed().paint(
-            "  ║              A minimalistic ARP scan tool written in Rust                ║"
-        )
+        Style::new()
+            .dimmed()
+            .paint("║              A minimalistic ARP scan tool written in Rust                ║")
     );
     println!(
         "{}",
-        Style::new().bold().paint(
-            "  ╚═══════════════════════════════════════════════════════════════════════════╝"
-        )
+        Style::new()
+            .bold()
+            .paint("╚═══════════════════════════════════════════════════════════════════════════╝")
     );
     println!();
 }
@@ -133,25 +132,21 @@ fn main() {
 
     if scan_options.is_plain_output() {
         let formatted_ms = time::format_milliseconds(estimations.duration_ms);
+        println!("Estimated time: {}", Yellow.paint(formatted_ms));
         println!(
-            "  {} Estimated scan time: {}",
-            Cyan.bold().paint("⏱"),
-            Yellow.paint(formatted_ms)
-        );
-        println!(
-            "  {} Sending {} ARP requests",
-            Cyan.bold().paint("📡"),
+            "ARP requests:   {}",
             Yellow.bold().paint(network_size.to_string())
         );
         println!(
-            "  {} Timeout: {}ms | Interval: {}ms",
-            Cyan.bold().paint("⚙"),
-            Yellow.paint(scan_options.timeout_ms.to_string()),
+            "Timeout:        {}ms",
+            Yellow.paint(scan_options.timeout_ms.to_string())
+        );
+        println!(
+            "Interval:       {}ms",
             Yellow.paint(interval_ms.to_string())
         );
         println!(
-            "  {} Bandwidth: {} bytes/s",
-            Cyan.bold().paint("📊"),
+            "Bandwidth:      {} bytes/s",
             Yellow.paint(estimations.bandwidth.to_string())
         );
         println!();
@@ -159,7 +154,7 @@ fn main() {
             "{}",
             Style::new()
                 .bold()
-                .paint("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Scanning ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                .paint("═══════════════════════════════ Scanning ════════════════════════════════")
         );
         println!();
     }
@@ -168,11 +163,7 @@ fn main() {
     let cloned_reached_timeout = Arc::clone(&has_reached_timeout);
 
     ctrlc::set_handler(move || {
-        eprintln!(
-            "\n  {} {}",
-            Yellow.bold().paint("⚠"),
-            Yellow.paint("Receiving halt signal, ending scan with partial results...")
-        );
+        eprintln!("\n[!] Interrupt received, ending scan with partial results...");
         cloned_reached_timeout.store(true, Ordering::Relaxed);
     })
     .unwrap_or_else(|err| {
@@ -213,8 +204,7 @@ fn main() {
                         / (network_size * scan_options.retry_count as u128) as f32)
                         * 100.0;
                     print!(
-                        "\r  {} Sending packets... [{}/{}] {:.1}%",
-                        Green.bold().paint("►"),
+                        "\rProgress: [{}/{}] {:.1}%  ",
                         total_sent,
                         network_size * scan_options.retry_count as u128,
                         progress_pct
@@ -230,13 +220,8 @@ fn main() {
 
     if scan_options.is_plain_output() && total_sent > 0 {
         println!(
-            "\r  {} Sending complete - {} packets sent                    ",
-            Green.bold().paint("✔"),
-            Green.bold().paint(total_sent.to_string())
-        );
-        println!(
-            "  {} Waiting for responses (timeout: {}ms)...",
-            Cyan.bold().paint("⏳"),
+            "\r{} packets sent. Waiting for responses (timeout: {}ms)...                    ",
+            Green.bold().paint(total_sent.to_string()),
             Yellow.paint(scan_options.timeout_ms.to_string())
         );
     }
